@@ -1,0 +1,85 @@
+<!doctype html>
+<html lang="es">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<meta name="robots" content="noindex, nofollow">
+<meta name="referrer" content="no-referrer">
+<title>Tachora · conexión con Webfleet</title>
+<style>
+  :root { color-scheme: light dark; }
+  body { margin: 0; font: 16px/1.5 system-ui, -apple-system, "Segoe UI", Roboto, sans-serif; background: #f3f6f6; color: #14201f; }
+  main { max-width: 560px; margin: 8vh auto; padding: 28px 24px; background: #fff; border: 1px solid #d5dfde; border-radius: 14px; }
+  h1 { margin: 0 0 4px; font-size: 1.5rem; }
+  p { margin: 10px 0; }
+  .muted { color: #5b6b69; font-size: .92rem; }
+  .btn { display: inline-block; margin: 8px 0; padding: 11px 18px; border-radius: 10px; background: #2f9c92; color: #fff; font-weight: 700; text-decoration: none; border: 0; font-size: 1rem; cursor: pointer; }
+  .box { margin: 10px 0; padding: 12px; border: 1px dashed #9db3b0; border-radius: 10px; background: #f3f6f6; font-family: ui-monospace, Consolas, monospace; font-size: .9rem; word-break: break-all; user-select: all; }
+  .err { color: #a3261c; font-weight: 700; }
+  [hidden] { display: none; }
+  @media (prefers-color-scheme: dark) {
+    body { background: #0e1716; color: #e6efed; }
+    main { background: #142120; border-color: #26393a; }
+    .muted { color: #9db3b0; } .box { background: #0e1716; border-color: #3b5553; } .err { color: #ff9a8f; }
+  }
+</style>
+</head>
+<body>
+<main>
+  <h1>Tachora</h1>
+  <p class="muted">Conexión con Webfleet · Webfleet connection</p>
+
+  <!-- Página abierta sin datos -->
+  <div id="vacio" hidden>
+    <p>Esta página solo sirve para volver al programa Tachora después de iniciar sesión en Webfleet. No guarda ni envía ningún dato.</p>
+    <p class="muted">This page only returns you to the Tachora program after signing in to Webfleet. It stores and sends no data.</p>
+  </div>
+
+  <!-- Webfleet devolvió un error -->
+  <div id="error" hidden>
+    <p class="err">Webfleet no ha dado el permiso.</p>
+    <p id="errTxt" class="box"></p>
+    <p class="muted">Vuelve a Tachora y pulsa otra vez «Conectar con Webfleet».</p>
+  </div>
+
+  <!-- Permiso recibido -->
+  <div id="ok" hidden>
+    <p><b>Permiso recibido.</b> Pulsa el botón si no vuelves a Tachora en unos segundos.</p>
+    <p><a id="volver" class="btn" href="#">Volver a Tachora</a></p>
+    <p class="muted">Tachora tiene que estar abierta en este ordenador. Si al pulsar el botón sale un error de conexión, abre Tachora, vuelve a esta página con la flecha «atrás» y copia este código en Tachora:</p>
+    <p id="codigo" class="box"></p>
+    <p><button id="copiar" class="btn" type="button">Copiar código</button></p>
+  </div>
+</main>
+<script>
+(function () {
+  'use strict';
+  var q = new URLSearchParams(location.search);
+  var code = q.get('code'), state = q.get('state') || '', err = q.get('error');
+  function show(id) { document.getElementById(id).hidden = false; }
+  if (err) {
+    document.getElementById('errTxt').textContent = err + (q.get('error_description') ? ' · ' + q.get('error_description') : '');
+    show('error'); return;
+  }
+  if (!code) { show('vacio'); return; }
+  // Tachora indica su puerto en «state» (p47820.xxxx). Solo se admite el propio ordenador y ese rango de puertos.
+  var m = /^p(\d{5})\./.exec(state), port = m ? parseInt(m[1], 10) : 47820;
+  if (!(port >= 47820 && port <= 47840)) port = 47820;
+  var target = 'http://127.0.0.1:' + port + '/webfleet/callback?code=' + encodeURIComponent(code) + '&state=' + encodeURIComponent(state);
+  document.getElementById('volver').href = target;
+  document.getElementById('codigo').textContent = code;
+  document.getElementById('copiar').addEventListener('click', function () {
+    var b = this;
+    function done() { b.textContent = 'Copiado'; }
+    if (navigator.clipboard && navigator.clipboard.writeText) navigator.clipboard.writeText(code).then(done, function () {});
+    else { var r = document.createRange(); r.selectNodeContents(document.getElementById('codigo')); var s = getSelection(); s.removeAllRanges(); s.addRange(r); try { document.execCommand('copy'); done(); } catch (e) {} }
+  });
+  show('ok');
+  // vuelve a Tachora sola una única vez; si se regresa a esta página (flecha «atrás»), se queda para poder copiar el código
+  var ya = false;
+  try { ya = sessionStorage.getItem('tachora_wf') === code; sessionStorage.setItem('tachora_wf', code); } catch (e) {}
+  if (!ya) setTimeout(function () { location.href = target; }, 1200);
+})();
+</script>
+</body>
+</html>
